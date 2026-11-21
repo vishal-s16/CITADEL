@@ -2,6 +2,8 @@
 
 **One Platform. Multiple Possibilities.**
 
+🌐 **Live Website:** [https://citadel-two-olive.vercel.app](https://citadel-two-olive.vercel.app)
+
 CITADEL is a centralized, modular web platform designed to host independent digital utilities and security tools under a single unified interface.
 
 ## Included Module
