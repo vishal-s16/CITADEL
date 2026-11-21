@@ -1,0 +1,52 @@
+<section id="stage-result" class="stage-panel" aria-labelledby="result-heading">
+  <div class="card">
+    <div class="result-banner">
+      <div class="result-check" aria-hidden="true">&#10003;</div>
+      <h2 id="result-heading">Your Hidden Image Is Ready!</h2>
+      <p class="muted">Your files have been losslessly embedded into a standard PNG image.</p>
+    </div>
+
+    <div class="comparison-grid">
+      <div class="preview-card">
+        <span class="preview-badge">Original Image</span>
+        <img id="result-original-img" src="" alt="Original container image preview">
+      </div>
+      <div class="preview-card">
+        <span class="preview-badge badge-success">Encoded PNG Image</span>
+        <img id="result-encoded-img" src="" alt="Encoded image preview">
+      </div>
+    </div>
+
+    <div class="result-stats-grid">
+      <div class="metric-tile">
+        <span class="metric-label">Original Image Size</span>
+        <span id="res-orig-size" class="metric-value mono">&mdash;</span>
+      </div>
+      <div class="metric-tile">
+        <span class="metric-label">Encoded Image Size</span>
+        <span id="res-enc-size" class="metric-value mono">&mdash;</span>
+      </div>
+      <div class="metric-tile">
+        <span class="metric-label">Hidden Files</span>
+        <span id="res-file-count" class="metric-value mono">&mdash;</span>
+      </div>
+      <div class="metric-tile">
+        <span class="metric-label">Total Hidden Data Size</span>
+        <span id="res-data-size" class="metric-value mono">&mdash;</span>
+      </div>
+      <div class="metric-tile metric-wide">
+        <span class="metric-label">Encoding Algorithm Used</span>
+        <span id="res-algorithm" class="metric-value mono accent-text">&mdash;</span>
+      </div>
+    </div>
+
+    <div class="result-actions">
+      <a id="download-encoded-btn" href="#" download class="btn btn-primary btn-lg">
+        DOWNLOAD IMAGE
+      </a>
+      <button type="button" id="start-new-btn" class="btn btn-secondary btn-lg">
+        START NEW OPERATION
+      </button>
+    </div>
+  </div>
+</section>

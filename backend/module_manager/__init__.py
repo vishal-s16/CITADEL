@@ -1,0 +1,1 @@
+"""CITADEL module manager package."""

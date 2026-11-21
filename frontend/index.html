@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CITADEL — One Platform. Multiple Possibilities.</title>
+  <meta name="description" content="CITADEL is a centralized modular platform for powerful digital tools, security utilities, and intelligent solutions." />
+  <link rel="icon" type="image/png" href="/assets/logos/favicon.png" />
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("citadel_theme");
+        var theme = saved === "light" || saved === "dark" ? saved : "dark";
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="/frontend/styles/dark-theme.css" />
+  <link rel="stylesheet" href="/frontend/styles/light-theme.css" />
+  <link rel="stylesheet" href="/frontend/styles/base.css" />
+</head>
+<body>
+  <div id="citadel-app" class="app-shell">
+    <header id="citadel-navbar" class="navbar-root"></header>
+
+    <main id="app-view" class="main-view" tabindex="-1" aria-live="polite"></main>
+
+    <footer id="citadel-footer" class="footer-root"></footer>
+
+    <aside id="citadel-music-player" class="music-player-dock" aria-label="Background Music Player"></aside>
+  </div>
+
+  <script type="module" src="/frontend/js/router.js"></script>
+</body>
+</html>

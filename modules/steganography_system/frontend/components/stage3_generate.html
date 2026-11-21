@@ -1,0 +1,108 @@
+<section id="stage-3" class="stage-panel" aria-labelledby="stage3-heading">
+  <div class="card">
+    <div class="card-header">
+      <span class="step-pill">Stage 3 of 3</span>
+      <h2 id="stage3-heading">Generate Hidden Image</h2>
+      <p class="muted">Review storage capacity, optionally enable AES-256-GCM encryption, and embed your files.</p>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-box">
+        <h3>Container Image</h3>
+        <div class="detail-row">
+          <span class="detail-label">Original Name</span>
+          <span id="sum-img-name" class="detail-value mono"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Dimensions</span>
+          <span id="sum-img-dims" class="detail-value mono"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Image Size</span>
+          <span id="sum-img-size" class="detail-value mono"></span>
+        </div>
+      </div>
+
+      <div class="summary-box">
+        <h3>Files to Hide</h3>
+        <div class="detail-row">
+          <span class="detail-label">Selected Files</span>
+          <span id="sum-file-count" class="detail-value mono"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Total File Size</span>
+          <span id="sum-file-total" class="detail-value mono"></span>
+        </div>
+        <ul id="sum-file-names" class="compact-file-list"></ul>
+      </div>
+    </div>
+
+    <div class="storage-box">
+      <div class="storage-header">
+        <h3>Storage Analysis</h3>
+        <span id="storage-status-badge" class="badge">Calculating...</span>
+      </div>
+
+      <div class="capacity-bar-track" aria-hidden="true">
+        <div id="capacity-bar-fill" class="capacity-bar-fill" style="width: 0%;"></div>
+      </div>
+
+      <div class="storage-metrics">
+        <div class="metric-tile">
+          <span class="metric-label">Available Capacity</span>
+          <span id="cap-available" class="metric-value mono">&mdash;</span>
+        </div>
+        <div class="metric-tile">
+          <span class="metric-label">Required Storage</span>
+          <span id="cap-required" class="metric-value mono">&mdash;</span>
+        </div>
+        <div class="metric-tile">
+          <span class="metric-label">Remaining Capacity</span>
+          <span id="cap-remaining" class="metric-value mono">&mdash;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="encryption-box">
+      <label class="toggle-row" for="enable-encryption-toggle">
+        <div>
+          <span class="toggle-title">Enable Password Protection (AES-256-GCM)</span>
+          <span class="toggle-desc">Encrypts the compressed payload with PBKDF2-HMAC-SHA256 key derivation before embedding.</span>
+        </div>
+        <input type="checkbox" id="enable-encryption-toggle" class="toggle-checkbox">
+      </label>
+
+      <div id="password-fields" class="password-fields hidden">
+        <div class="input-group">
+          <label for="encode-password">Password</label>
+          <input type="password" id="encode-password" placeholder="Create a strong password" autocomplete="new-password">
+        </div>
+        <div class="input-group">
+          <label for="encode-password-confirm">Confirm Password</label>
+          <input type="password" id="encode-password-confirm" placeholder="Re-enter password" autocomplete="new-password">
+        </div>
+      </div>
+    </div>
+
+    <div id="stage3-error" class="alert alert-error hidden" role="alert"></div>
+
+    <div id="encoding-progress-panel" class="progress-panel hidden" aria-live="polite">
+      <h3>Encoding Progress</h3>
+      <ol id="encoding-steps-list" class="progress-steps">
+        <li data-step="1"><span class="step-dot"></span>1. Preparing files.</li>
+        <li data-step="2"><span class="step-dot"></span>2. Compressing files.</li>
+        <li data-step="3"><span class="step-dot"></span>3. Encrypting files (if enabled).</li>
+        <li data-step="4"><span class="step-dot"></span>4. Converting data into binary.</li>
+        <li data-step="5"><span class="step-dot"></span>5. Embedding data into image.</li>
+        <li data-step="6"><span class="step-dot"></span>6. Generating final PNG.</li>
+      </ol>
+    </div>
+
+    <div class="stage-footer">
+      <button type="button" id="stage3-back-btn" class="btn btn-ghost">&larr; Back</button>
+      <button type="button" id="generate-btn" class="btn btn-primary btn-lg" disabled>
+        Generate Hidden Image
+      </button>
+    </div>
+  </div>
+</section>

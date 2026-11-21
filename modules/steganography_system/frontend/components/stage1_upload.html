@@ -1,0 +1,67 @@
+<section id="stage-1" class="stage-panel active" aria-labelledby="stage1-heading">
+  <div class="hero-header">
+    <h1 id="stage1-heading">Image Steganography</h1>
+    <p class="subtitle">Hide your files inside ordinary images.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="step-pill">Stage 1 of 3</span>
+      <h2>Upload Container Image</h2>
+      <p class="muted">Select a PNG or JPEG/JPG image to serve as the lossless carrier container.</p>
+    </div>
+
+    <div id="image-dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload container image">
+      <input type="file" id="image-file-input" accept=".png,.jpg,.jpeg,image/png,image/jpeg" hidden>
+      <div class="dropzone-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <path d="M21 15l-5-5L5 21"></path>
+        </svg>
+      </div>
+      <p class="dropzone-title">Drag and drop your image here</p>
+      <p class="dropzone-hint">Supports PNG, JPEG, and JPG &middot; JPEGs are automatically converted to lossless PNG</p>
+      <button type="button" id="browse-image-btn" class="btn btn-secondary">Browse Files</button>
+    </div>
+
+    <div id="stage1-error" class="alert alert-error hidden" role="alert"></div>
+
+    <div id="image-preview-panel" class="image-preview-panel hidden">
+      <div class="preview-thumb-wrap">
+        <img id="container-preview-img" src="" alt="Container image preview">
+      </div>
+      <div class="preview-details">
+        <div class="detail-row">
+          <span class="detail-label">Filename</span>
+          <span id="img-meta-name" class="detail-value mono"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Dimensions</span>
+          <span id="img-meta-dims" class="detail-value mono"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Image Size</span>
+          <span id="img-meta-size" class="detail-value mono"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Raw Capacity (RGB LSB)</span>
+          <span id="img-meta-capacity" class="detail-value mono accent-text"></span>
+        </div>
+        <div id="jpeg-notice" class="badge badge-info hidden">
+          JPEG detected &mdash; will be converted to a lossless PNG container before embedding.
+        </div>
+        <div class="preview-actions">
+          <button type="button" id="change-image-btn" class="btn btn-ghost btn-sm">Change Image</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage-footer">
+      <span></span>
+      <button type="button" id="stage1-continue-btn" class="btn btn-primary" disabled>
+        Continue &rarr;
+      </button>
+    </div>
+  </div>
+</section>

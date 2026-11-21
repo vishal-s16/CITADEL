@@ -1,0 +1,54 @@
+/* CITADEL Light Theme */
+html[data-theme="light"] {
+  color-scheme: light;
+
+  /* Core Surfaces */
+  --bg-primary: #f6f8fb;
+  --bg-secondary: #edf1f6;
+  --bg-elevated: #ffffff;
+  --surface-card: #ffffff;
+  --surface-card-hover: #f9fbfd;
+  --surface-subtle: #f1f5f9;
+  --surface-input: #ffffff;
+  --surface-nav: rgba(255, 255, 255, 0.9);
+  --surface-dock: rgba(255, 255, 255, 0.95);
+
+  /* Brand Logo Contrast Plate (blends seamlessly on light theme) */
+  --logo-plate-bg: #ffffff;
+  --logo-plate-border: rgba(15, 23, 42, 0.1);
+  --logo-plate-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+
+  /* Typography */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-inverse: #ffffff;
+
+  /* Restrained Cybersecurity Accents */
+  --accent-primary: #0284c7;
+  --accent-primary-hover: #0369a1;
+  --accent-soft: rgba(2, 132, 199, 0.1);
+  --accent-border: rgba(2, 132, 199, 0.3);
+
+  /* Semantic Status */
+  --status-success: #047857;
+  --status-success-bg: rgba(4, 120, 87, 0.1);
+  --status-success-border: rgba(4, 120, 87, 0.25);
+  --status-danger: #b91c1c;
+  --status-danger-bg: rgba(185, 28, 28, 0.08);
+  --status-danger-border: rgba(185, 28, 28, 0.25);
+  --status-info: #1d4ed8;
+  --status-info-bg: rgba(29, 78, 216, 0.08);
+  --status-info-border: rgba(29, 78, 216, 0.24);
+
+  /* Borders & Shadows */
+  --border-subtle: rgba(15, 23, 42, 0.09);
+  --border-strong: rgba(15, 23, 42, 0.18);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 10px 28px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 18px 42px rgba(15, 23, 42, 0.12);
+
+  /* Canvas Grid */
+  --grid-line: rgba(2, 132, 199, 0.09);
+  --grid-node: rgba(2, 132, 199, 0.28);
+}

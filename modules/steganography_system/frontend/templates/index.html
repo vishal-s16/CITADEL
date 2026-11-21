@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Steganography — Universal File Hiding</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="18" height="18" rx="4"></rect>
+            <path d="M8 12l3 3 5-6"></path>
+          </svg>
+        </div>
+        <span class="brand-name">StegoVault</span>
+      </div>
+
+      <nav class="mode-nav" aria-label="Application mode">
+        <button type="button" id="nav-hide-btn" class="nav-tab active" data-mode="hide">
+          Hide Files
+        </button>
+        <button type="button" id="nav-extract-btn" class="nav-tab" data-mode="extract">
+          Extract Files
+        </button>
+      </nav>
+    </header>
+
+    <main class="main-container">
+      <div id="hide-panel" class="mode-panel">
+        <ol id="stepper" class="stepper" aria-label="Encoding workflow progress">
+          <li class="stepper-item active" data-stage="1">
+            <span class="stepper-num">1</span>
+            <span class="stepper-label">Upload Image</span>
+          </li>
+          <li class="stepper-connector"></li>
+          <li class="stepper-item" data-stage="2">
+            <span class="stepper-num">2</span>
+            <span class="stepper-label">Select Files</span>
+          </li>
+          <li class="stepper-connector"></li>
+          <li class="stepper-item" data-stage="3">
+            <span class="stepper-num">3</span>
+            <span class="stepper-label">Generate PNG</span>
+          </li>
+        </ol>
+
+        {% include "stage1_upload.html" %}
+        {% include "stage2_files.html" %}
+        {% include "stage3_generate.html" %}
+        {% include "result_view.html" %}
+      </div>
+
+      {% include "extract_view.html" %}
+    </main>
+
+    <footer class="footer">
+      <span>RGB Least Significant Bit (LSB) Steganography &middot; Lossless PNG Container &middot; Optional AES-256-GCM Encryption</span>
+    </footer>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

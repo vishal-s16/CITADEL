@@ -1,0 +1,72 @@
+<section id="extract-panel" class="mode-panel hidden" aria-labelledby="extract-heading">
+  <div class="hero-header">
+    <h1 id="extract-heading">Extract Hidden Files</h1>
+    <p class="subtitle">Upload an encoded PNG image created with this application to recover its hidden files.</p>
+  </div>
+
+  <div class="card">
+    <div id="extract-dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload encoded PNG image">
+      <input type="file" id="extract-file-input" accept=".png,image/png" hidden>
+      <div class="dropzone-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+      </div>
+      <p class="dropzone-title">Drag and drop an encoded PNG image</p>
+      <p class="dropzone-hint">Lossless PNG files only &middot; Automatically checks for supported payload metadata</p>
+      <button type="button" id="browse-extract-btn" class="btn btn-secondary">Browse PNG Image</button>
+    </div>
+
+    <div id="extract-error" class="alert alert-error hidden" role="alert"></div>
+    <div id="extract-info" class="alert alert-info hidden" role="status"></div>
+
+    <div id="extract-inspect-panel" class="image-preview-panel hidden">
+      <div class="preview-thumb-wrap">
+        <img id="extract-preview-img" src="" alt="Encoded PNG preview">
+      </div>
+      <div class="preview-details">
+        <div class="detail-row">
+          <span class="detail-label">Filename</span>
+          <span id="ext-meta-name" class="detail-value mono"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Dimensions</span>
+          <span id="ext-meta-dims" class="detail-value mono"></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Payload Status</span>
+          <span id="ext-meta-status" class="detail-value"></span>
+        </div>
+
+        <div id="extract-password-wrap" class="input-group hidden">
+          <label for="extract-password">Payload Password</label>
+          <input type="password" id="extract-password" placeholder="Enter password to decrypt hidden files" autocomplete="current-password">
+        </div>
+
+        <div class="preview-actions">
+          <button type="button" id="run-extract-btn" class="btn btn-primary">Extract Files</button>
+          <button type="button" id="reset-extract-btn" class="btn btn-ghost btn-sm">Choose Another Image</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="extract-results-panel" class="extract-results hidden">
+      <div class="section-divider"></div>
+      <div class="extract-results-header">
+        <div>
+          <h3>Recovered Files</h3>
+          <p id="extract-results-meta" class="muted"></p>
+        </div>
+        <a id="download-all-zip-btn" href="#" download class="btn btn-primary btn-sm hidden">
+          Download All as ZIP
+        </a>
+      </div>
+      <div class="badge badge-success integrity-badge">
+        &#10003; SHA-256 Integrity Verified &mdash; Byte-for-Byte Match
+      </div>
+      <ul id="extracted-files-list" class="file-list"></ul>
+    </div>
+  </div>
+</section>
