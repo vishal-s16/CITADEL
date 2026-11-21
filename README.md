@@ -2,6 +2,9 @@
 
 **One Platform. Multiple Possibilities.**
 
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://citadel-two-olive.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-citadel--two--olive.vercel.app-0070F3?style=for-the-badge&logo=google-chrome&logoColor=white)](https://citadel-two-olive.vercel.app)
+
 🌐 **Live Website:** [https://citadel-two-olive.vercel.app](https://citadel-two-olive.vercel.app)
 
 CITADEL is a centralized, modular web platform designed to host independent digital utilities and security tools under a single unified interface.
