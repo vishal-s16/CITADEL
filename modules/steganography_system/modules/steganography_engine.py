@@ -15,6 +15,9 @@ from modules.image_handler import ImageInfo, format_bytes, format_capacity_all_u
 ALGORITHM_NAME = "RGB Least Significant Bit (LSB) + zlib"
 ALGORITHM_NAME_ENCRYPTED = "RGB Least Significant Bit (LSB) + zlib + AES-256-GCM"
 
+# Embed 1 MB (8M bits) per chunk to keep peak RAM low for large payloads
+_EMBED_CHUNK_BYTES = 1024 * 1024
+
 ProgressCallback = Callable[[int, str], None]
 
 
@@ -67,21 +70,29 @@ class EncodeResult:
 
 
 def embed_bytes_into_rgb_array(pixel_array: np.ndarray, payload_bytes: bytes) -> np.ndarray:
-    """Embed payload_bytes into the LSB of every RGB channel in pixel_array."""
+    """Embed payload_bytes into the LSB of every RGB channel in pixel_array using chunked writes."""
     flat_pixels = pixel_array.reshape(-1)
     max_bytes = flat_pixels.size // 8
+    total_len = len(payload_bytes)
 
-    if len(payload_bytes) > max_bytes:
+    if total_len > max_bytes:
         raise CapacityExceededError(
-            f"Payload requires {format_bytes(len(payload_bytes))} ({len(payload_bytes):,} bytes), "
+            f"Payload requires {format_bytes(total_len)} ({total_len:,} bytes), "
             f"which exceeds the image's capacity of {format_bytes(max_bytes)} ({max_bytes:,} bytes)."
         )
 
-    payload_uint8 = np.frombuffer(payload_bytes, dtype=np.uint8)
-    bits = np.unpackbits(payload_uint8, bitorder="big")
-
     encoded_flat = flat_pixels.copy()
-    encoded_flat[: bits.size] = (encoded_flat[: bits.size] & np.uint8(0xFE)) | bits
+    payload_uint8 = np.frombuffer(payload_bytes, dtype=np.uint8)
+
+    offset = 0
+    while offset < total_len:
+        chunk_end = min(total_len, offset + _EMBED_CHUNK_BYTES)
+        bits = np.unpackbits(payload_uint8[offset:chunk_end], bitorder="big")
+        bit_start = offset * 8
+        bit_end = chunk_end * 8
+        encoded_flat[bit_start:bit_end] = (encoded_flat[bit_start:bit_end] & np.uint8(0xFE)) | bits
+        offset = chunk_end
+
     return encoded_flat.reshape(pixel_array.shape)
 
 

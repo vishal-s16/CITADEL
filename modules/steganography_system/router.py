@@ -41,7 +41,11 @@ from modules.exceptions import (  # noqa: E402
     UnsupportedImageFormatError,
 )
 from modules.file_manager import PayloadFile  # noqa: E402
-from modules.image_handler import format_bytes, format_capacity_all_units  # noqa: E402
+from modules.image_handler import (  # noqa: E402
+    format_bytes,
+    format_capacity_all_units,
+    make_preview_thumbnail_bytes,
+)
 
 from backend.core.config import (  # noqa: E402
     MAX_FILES_PER_REQUEST,
@@ -49,20 +53,24 @@ from backend.core.config import (  # noqa: E402
     MAX_PAYLOAD_TOTAL_BYTES,
 )
 
-MAX_CACHE_ITEMS = 20
+MAX_CACHE_ITEMS = 12
+MAX_INSPECT_CACHE_ITEMS = 4
 CACHE_TTL_SECONDS = 3600  # 1 hour
+INSPECT_TTL_SECONDS = 900  # 15 minutes
+_READ_CHUNK_SIZE = 4 * 1024 * 1024  # 4 MB streaming chunks
 
 # Bounded in-memory caches (never written to disk in plaintext)
 _encoded_store: "OrderedDict[str, dict]" = OrderedDict()
 _extracted_store: "OrderedDict[str, dict]" = OrderedDict()
+_inspect_store: "OrderedDict[str, dict]" = OrderedDict()
 
 
-def _prune_cache(store: "OrderedDict[str, dict]") -> None:
+def _prune_cache(store: "OrderedDict[str, dict]", max_items: int = MAX_CACHE_ITEMS, ttl: int = CACHE_TTL_SECONDS) -> None:
     now = time.time()
-    expired = [k for k, v in store.items() if now - v["created_at"] > CACHE_TTL_SECONDS]
+    expired = [k for k, v in store.items() if now - v["created_at"] > ttl]
     for key in expired:
         store.pop(key, None)
-    while len(store) > MAX_CACHE_ITEMS:
+    while len(store) > max_items:
         store.popitem(last=False)
 
 
@@ -82,12 +90,20 @@ def _api_base_from_request(request: Request) -> str:
 
 
 async def _read_image_bounded(upload: UploadFile) -> bytes:
-    data = await upload.read(MAX_IMAGE_UPLOAD_BYTES + 1)
-    if len(data) > MAX_IMAGE_UPLOAD_BYTES:
-        raise CapacityExceededError(
-            f"Container image exceeds the maximum allowed upload size of {format_bytes(MAX_IMAGE_UPLOAD_BYTES)}."
-        )
-    return data
+    """Stream-read an uploaded image in chunks up to MAX_IMAGE_UPLOAD_BYTES."""
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await upload.read(_READ_CHUNK_SIZE)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_IMAGE_UPLOAD_BYTES:
+            raise CapacityExceededError(
+                f"Container image exceeds the maximum allowed upload size of {format_bytes(MAX_IMAGE_UPLOAD_BYTES)}."
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 async def _read_payload_files_bounded(files: List[UploadFile]) -> list[tuple[str, bytes]]:
@@ -98,14 +114,18 @@ async def _read_payload_files_bounded(files: List[UploadFile]) -> list[tuple[str
     payload_pairs: list[tuple[str, bytes]] = []
     total_read = 0
     for upload in files:
-        remaining = MAX_PAYLOAD_TOTAL_BYTES - total_read
-        chunk = await upload.read(remaining + 1)
-        total_read += len(chunk)
-        if total_read > MAX_PAYLOAD_TOTAL_BYTES:
-            raise CapacityExceededError(
-                f"Selected files exceed the maximum allowed total upload size of {format_bytes(MAX_PAYLOAD_TOTAL_BYTES)}."
-            )
-        payload_pairs.append((upload.filename or "file", chunk))
+        file_chunks: list[bytes] = []
+        while True:
+            chunk = await upload.read(_READ_CHUNK_SIZE)
+            if not chunk:
+                break
+            total_read += len(chunk)
+            if total_read > MAX_PAYLOAD_TOTAL_BYTES:
+                raise CapacityExceededError(
+                    f"Selected files exceed the maximum allowed total upload size of {format_bytes(MAX_PAYLOAD_TOTAL_BYTES)}."
+                )
+            file_chunks.append(chunk)
+        payload_pairs.append((upload.filename or "file", b"".join(file_chunks)))
     return payload_pairs
 
 
@@ -232,7 +252,8 @@ def create_router() -> APIRouter:
             "data": result.encoded_png_bytes,
         }
 
-        encoded_preview_b64 = base64.b64encode(result.encoded_png_bytes).decode("ascii")
+        preview_bytes, preview_mime = make_preview_thumbnail_bytes(result.encoded_png_bytes)
+        encoded_preview_b64 = base64.b64encode(preview_bytes).decode("ascii")
         api_base = _api_base_from_request(request)
 
         return {
@@ -240,7 +261,7 @@ def create_router() -> APIRouter:
             "job_id": job_id,
             "download_url": f"{api_base}/download/encoded/{job_id}",
             "download_filename": download_filename,
-            "encoded_preview_data_url": f"data:image/png;base64,{encoded_preview_b64}",
+            "encoded_preview_data_url": f"data:{preview_mime};base64,{encoded_preview_b64}",
             "original_image": result.image_info.to_dict(),
             "encoded_size_bytes": result.encoded_size_bytes,
             "encoded_size_formatted": format_bytes(result.encoded_size_bytes),
@@ -279,26 +300,55 @@ def create_router() -> APIRouter:
     async def inspect_endpoint(image: UploadFile = File(...)):
         """Inspect an uploaded PNG to detect whether it contains a payload from this application."""
         image_bytes = await _read_image_bounded(image)
+        filename = image.filename or "encoded.png"
         result = extraction_engine.inspect_encoded_image(
             image_bytes=image_bytes,
-            image_filename=image.filename or "encoded.png",
+            image_filename=filename,
         )
+
+        inspect_token = None
+        if result.has_payload:
+            _prune_cache(_inspect_store, max_items=MAX_INSPECT_CACHE_ITEMS, ttl=INSPECT_TTL_SECONDS)
+            inspect_token = secrets.token_urlsafe(16)
+            _inspect_store[inspect_token] = {
+                "created_at": time.time(),
+                "filename": filename,
+                "data": image_bytes,
+            }
+
         return {
             "ok": True,
+            "inspect_token": inspect_token,
             **result.to_dict(),
         }
 
     @router.post("/extract")
     async def extract_endpoint(
         request: Request,
-        image: UploadFile = File(...),
+        image: Optional[UploadFile] = File(default=None),
+        inspect_token: Optional[str] = Form(default=None),
         password: Optional[str] = Form(default=None),
     ):
         """Extract and verify hidden files from an encoded PNG image."""
-        image_bytes = await _read_image_bounded(image)
+        image_bytes: Optional[bytes] = None
+        filename = "encoded.png"
+
+        if inspect_token:
+            _prune_cache(_inspect_store, max_items=MAX_INSPECT_CACHE_ITEMS, ttl=INSPECT_TTL_SECONDS)
+            cached = _inspect_store.get(inspect_token)
+            if cached:
+                image_bytes = cached["data"]
+                filename = cached["filename"]
+
+        if image_bytes is None:
+            if image is None:
+                raise InvalidImageError("Please upload an encoded PNG image to extract.")
+            image_bytes = await _read_image_bounded(image)
+            filename = image.filename or "encoded.png"
+
         result = extraction_engine.extract_files_from_image(
             image_bytes=image_bytes,
-            image_filename=image.filename or "encoded.png",
+            image_filename=filename,
             password=password or None,
         )
 

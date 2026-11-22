@@ -9,10 +9,15 @@
 
 CITADEL is a centralized, modular web platform designed to host independent digital utilities and security tools under a single unified interface.
 
-## Included Module
+## Included Modules
 
 - **Module 01 — Steganography System** (`/tools/steganography`)
-  - Preserves the complete Universal Image Steganography backend (`RGB LSB`, `zlib` compression, optional `AES-256-GCM` with `PBKDF2-HMAC-SHA256`, `SHA-256` + `CRC32` integrity verification, multi-file embedding & ZIP extraction).
+  - Universal Image Steganography backend (`RGB LSB`, `zlib` compression, optional `AES-256-GCM` with `PBKDF2-HMAC-SHA256`, `SHA-256` + `CRC32` integrity verification, multi-file embedding & ZIP extraction).
+- **Module 02 — DocReader** (`/tools/docreader`)
+  - Universal Document Reader supporting PDF, Word, PowerPoint, Excel, OpenDocument, RTF, Markdown, HTML, text files, and images with full text extraction, search, and sanitization.
+- **Module 03 — Universal File Compressor** (`/tools/compressor`)
+  - Hybrid client-side & server-side intelligent file compression for images, PDFs, videos, audio, and documents with configurable target file size and quality preservation.
+
 
 ## Quick Start
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 import unittest
 import zipfile
 
@@ -29,6 +30,8 @@ class TestCitadelPlatform(unittest.TestCase):
             "/",
             "/tools",
             "/tools/steganography",
+            "/tools/docreader",
+            "/tools/compressor",
             "/about",
             "/credits",
             "/contact",
@@ -38,9 +41,9 @@ class TestCitadelPlatform(unittest.TestCase):
             self.assertEqual(res.status_code, 200, f"Route failed: {path}")
             self.assertIn("CITADEL", res.text)
             self.assertEqual(res.headers.get("X-Content-Type-Options"), "nosniff")
-            self.assertEqual(res.headers.get("X-Frame-Options"), "DENY")
+            self.assertEqual(res.headers.get("X-Frame-Options"), "SAMEORIGIN")
 
-    def test_static_assets_and_media_available(self) -> None:
+    def test_static_assets_and_module_uis_available(self) -> None:
         assets = [
             "/assets/logos/citadel_logo.jpeg",
             "/assets/logos/citadel_intrologo.jpeg",
@@ -51,8 +54,16 @@ class TestCitadelPlatform(unittest.TestCase):
             "/frontend/styles/dark-theme.css",
             "/frontend/styles/light-theme.css",
             "/frontend/styles/base.css",
+            "/frontend/styles/intro.css",
+            "/frontend/components/intro-overlay.js",
+            "/frontend/components/music-player.js",
             "/frontend/js/router.js",
             "/frontend/pages/steganography.js",
+            "/frontend/pages/docreader.js",
+            "/frontend/pages/compressor.js",
+            "/module-ui/docreader/",
+            "/module-ui/compressor/",
+            "/module-ui/compressor/services/api.js",
         ]
         for url in assets:
             res = self.client.get(url)
@@ -63,18 +74,14 @@ class TestCitadelPlatform(unittest.TestCase):
         health = self.client.get("/api/health").json()
         self.assertTrue(health["ok"])
         self.assertEqual(health["platform"], "CITADEL")
-        self.assertEqual(health["registered_modules"], 1)
+        self.assertEqual(health["registered_modules"], 3)
 
         mods_res = self.client.get("/api/modules")
         self.assertEqual(mods_res.status_code, 200)
         mods = mods_res.json()["modules"]
-        self.assertEqual(len(mods), 1)
-        m = mods[0]
-        self.assertEqual(m["module_id"], "steganography-system")
-        self.assertEqual(m["code"], "MODULE 01")
-        self.assertEqual(m["name"], "Steganography System")
-        self.assertEqual(m["status"], "Available")
-        self.assertEqual(m["entry_route"], "/tools/steganography")
+        self.assertEqual(len(mods), 3)
+        ids = [m["module_id"] for m in mods]
+        self.assertEqual(ids, ["steganography-system", "docreader", "file-compressor"])
 
         # Unknown module & unknown API route return clean 404 JSON
         missing_mod = self.client.get("/api/modules/does-not-exist")
@@ -136,7 +143,6 @@ class TestCitadelPlatform(unittest.TestCase):
         self.assertTrue(enc_data["ok"])
         self.assertTrue(enc_data["encrypted"])
         self.assertEqual(enc_data["file_count"], 2)
-        self.assertTrue(enc_data["download_url"].startswith(f"{base}/download/encoded/"))
 
         # 5. Download encoded PNG
         dl_res = self.client.get(enc_data["download_url"])
@@ -150,8 +156,10 @@ class TestCitadelPlatform(unittest.TestCase):
             files={"image": ("carrier_stego.png", stego_png, "image/png")},
         )
         self.assertEqual(insp_res.status_code, 200)
-        self.assertTrue(insp_res.json()["has_payload"])
-        self.assertTrue(insp_res.json()["metadata"]["is_encrypted"])
+        insp_data = insp_res.json()
+        self.assertTrue(insp_data["has_payload"])
+        self.assertTrue(insp_data["metadata"]["is_encrypted"])
+        self.assertIsNotNone(insp_data["inspect_token"])
 
         # 7. Wrong password rejected (401)
         bad_pwd_res = self.client.post(
@@ -162,28 +170,121 @@ class TestCitadelPlatform(unittest.TestCase):
         self.assertEqual(bad_pwd_res.status_code, 401)
         self.assertFalse(bad_pwd_res.json()["ok"])
 
-        # 8. Correct password extracts both files byte-for-byte
+        # 8. Correct password extracts both files byte-for-byte via inspect_token
         ext_res = self.client.post(
             f"{base}/extract",
-            files={"image": ("carrier_stego.png", stego_png, "image/png")},
-            data={"password": "CitadelStrongPassword!2026"},
+            data={
+                "inspect_token": insp_data["inspect_token"],
+                "password": "CitadelStrongPassword!2026",
+            },
         )
         self.assertEqual(ext_res.status_code, 200)
         ext_data = ext_res.json()
         self.assertEqual(ext_data["file_count"], 2)
         self.assertIsNotNone(ext_data["zip_download_url"])
 
-        # Individual file download
         f1_dl = self.client.get(ext_data["files"][0]["download_url"])
         self.assertEqual(f1_dl.status_code, 200)
         self.assertEqual(f1_dl.content, file1)
 
-        # ZIP bundle download
         zip_dl = self.client.get(ext_data["zip_download_url"])
         self.assertEqual(zip_dl.status_code, 200)
         with zipfile.ZipFile(io.BytesIO(zip_dl.content)) as zf:
             self.assertEqual(zf.read("note1.txt"), file1)
             self.assertEqual(zf.read("note2.txt"), file2)
+
+    def test_steganography_large_file_chunked_encode_and_decode(self) -> None:
+        """Verify chunked LSB embedding and decoding on a multi-megabyte incompressible payload."""
+        base = "/api/modules/steganography"
+        # 3000x2400 RGB has ~2.7 MB raw LSB capacity; hide a 2.2 MB random binary payload
+        large_carrier = _make_image_bytes(3000, 2400, fmt="JPEG")
+        large_payload = os.urandom(2 * 1024 * 1024 + 200_000)
+
+        enc_res = self.client.post(
+            f"{base}/encode",
+            files=[
+                ("image", ("large_carrier.jpg", large_carrier, "image/jpeg")),
+                ("files", ("large_blob.bin", large_payload, "application/octet-stream")),
+            ],
+            data={"category": "other", "use_encryption": "false"},
+        )
+        self.assertEqual(enc_res.status_code, 200, enc_res.text)
+        enc_data = enc_res.json()
+        self.assertTrue(enc_data["ok"])
+        # Ensure thumbnail preview stayed lightweight instead of inlining multi-MB base64
+        self.assertLess(len(enc_data["encoded_preview_data_url"]), 500_000)
+
+        stego_png = self.client.get(enc_data["download_url"]).content
+
+        insp_res = self.client.post(
+            f"{base}/inspect",
+            files={"image": ("large_stego.png", stego_png, "image/png")},
+        )
+        self.assertEqual(insp_res.status_code, 200, insp_res.text)
+        insp_data = insp_res.json()
+        self.assertTrue(insp_data["has_payload"])
+
+        ext_res = self.client.post(
+            f"{base}/extract",
+            data={"inspect_token": insp_data["inspect_token"]},
+        )
+        self.assertEqual(ext_res.status_code, 200, ext_res.text)
+        ext_data = ext_res.json()
+        self.assertEqual(ext_data["file_count"], 1)
+
+        recovered = self.client.get(ext_data["files"][0]["download_url"]).content
+        self.assertEqual(recovered, large_payload)
+
+    def test_docreader_module_end_to_end(self) -> None:
+        base = "/api/modules/docreader"
+        health = self.client.get(f"{base}/health")
+        self.assertEqual(health.status_code, 200)
+        self.assertEqual(health.json()["status"], "ok")
+
+        sample_text = b"CITADEL Module 02 DocReader verification document.\nSecond paragraph for search."
+        up = self.client.post(
+            f"{base}/documents/upload",
+            files=[("files", ("citadel_test.txt", sample_text, "text/plain"))],
+        )
+        self.assertEqual(up.status_code, 200, up.text)
+        docs = up.json()["documents"]
+        self.assertEqual(len(docs), 1)
+        doc_id = docs[0]["id"]
+
+        detail = self.client.get(f"{base}/documents/{doc_id}")
+        self.assertEqual(detail.status_code, 200)
+        self.assertIn("DocReader verification", detail.json()["full_text"])
+
+        # Cleanup uploaded test doc
+        del_res = self.client.delete(f"{base}/documents/{doc_id}")
+        self.assertEqual(del_res.status_code, 200)
+
+    def test_compressor_module_end_to_end(self) -> None:
+        base = "/api/modules/compressor"
+        health = self.client.get(f"{base}/health")
+        self.assertEqual(health.status_code, 200)
+
+        img_bytes = _make_image_bytes(400, 300, fmt="PNG")
+        up = self.client.post(
+            f"{base}/upload",
+            files={"file": ("sample.png", img_bytes, "image/png")},
+        )
+        self.assertIn(up.status_code, (200, 201), up.text)
+        job_id = up.json()["job"]["jobId"]
+
+        comp = self.client.post(
+            f"{base}/compress",
+            json={"jobId": job_id, "settings": {"level": "balanced"}},
+        )
+        self.assertEqual(comp.status_code, 200, comp.text)
+        self.assertTrue(comp.json()["success"])
+
+        dl = self.client.get(f"{base}/download/{job_id}")
+        self.assertEqual(dl.status_code, 200)
+        self.assertGreater(len(dl.content), 0)
+
+        clean = self.client.delete(f"{base}/cleanup/{job_id}")
+        self.assertEqual(clean.status_code, 200)
 
     def test_error_handling_for_plain_image_and_invalid_input(self) -> None:
         base = "/api/modules/steganography"

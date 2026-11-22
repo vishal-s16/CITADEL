@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,6 +15,7 @@ from backend.core.config import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     FRONTEND_DIR,
+    MODULES_DIR,
     PLATFORM_NAME,
     PLATFORM_TAGLINE,
     PLATFORM_VERSION,
@@ -18,6 +23,35 @@ from backend.core.config import (
 from backend.core.security import SecurityHeadersMiddleware, error_response
 from backend.module_manager.modules_config import register_all_modules
 from backend.module_manager.registry import ModuleRegistry
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Manage background cleanup tasks for integrated modules."""
+    hooks = getattr(app.state, "module_lifespan", {})
+    docreader_settings = hooks.get("docreader_settings")
+    docreader_cleanup_loop = hooks.get("docreader_cleanup_loop")
+    compressor_cleanup_worker = hooks.get("compressor_cleanup_worker")
+
+    docreader_task = None
+    if docreader_settings is not None:
+        docreader_settings.ensure_dirs()
+    if docreader_cleanup_loop is not None:
+        docreader_task = asyncio.create_task(docreader_cleanup_loop())
+    if compressor_cleanup_worker is not None:
+        compressor_cleanup_worker.start()
+
+    try:
+        yield
+    finally:
+        if compressor_cleanup_worker is not None:
+            compressor_cleanup_worker.stop()
+        if docreader_task is not None:
+            docreader_task.cancel()
+            try:
+                await docreader_task
+            except asyncio.CancelledError:
+                pass
 
 
 def create_app() -> FastAPI:
@@ -28,6 +62,7 @@ def create_app() -> FastAPI:
         version=PLATFORM_VERSION,
         docs_url="/api/docs",
         redoc_url=None,
+        lifespan=lifespan,
     )
 
     app.add_middleware(SecurityHeadersMiddleware)
@@ -35,6 +70,7 @@ def create_app() -> FastAPI:
     # Centralized Module Registry
     module_registry = ModuleRegistry()
     app.state.module_registry = module_registry
+    app.state.module_lifespan = {}
 
     # --- Global Safe Exception Handlers ---
     @app.exception_handler(MemoryError)
@@ -84,6 +120,21 @@ def create_app() -> FastAPI:
 
     # Register and mount all independent modules
     register_all_modules(module_registry, app)
+
+    # --- Embedded Module UIs (same-origin) ---
+    docreader_index = MODULES_DIR / "docreader" / "app" / "static" / "index.html"
+    compressor_frontend_dir = MODULES_DIR / "file_compressor" / "frontend"
+
+    @app.get("/module-ui/docreader", include_in_schema=False)
+    @app.get("/module-ui/docreader/", include_in_schema=False)
+    async def serve_docreader_ui():
+        return FileResponse(docreader_index, media_type="text/html")
+
+    app.mount(
+        "/module-ui/compressor",
+        StaticFiles(directory=str(compressor_frontend_dir), html=True),
+        name="citadel_compressor_ui",
+    )
 
     # --- Static Frontend & Asset Mounts ---
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="citadel_assets")

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Universal File Compressor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            },
+          },
+        },
+      };
+    </script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  </head>
+  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased">
+    <div id="root"></div>
+
+    <!-- Core utilities & hybrid compression services -->
+    <script src="/module-ui/compressor/utils/formatters.js"></script>
+    <script src="/module-ui/compressor/services/clientCompressor.js"></script>
+    <script src="/module-ui/compressor/services/api.js"></script>
+
+    <!-- Reusable React components (compiled in-browser with Babel, zero npm) -->
+    <script type="text/babel" src="/module-ui/compressor/components/FileUploader/FileUploader.jsx"></script>
+    <script type="text/babel" src="/module-ui/compressor/components/FileDetails/FileDetails.jsx"></script>
+    <script type="text/babel" src="/module-ui/compressor/components/TargetSizeInput/TargetSizeInput.jsx"></script>
+    <script type="text/babel" src="/module-ui/compressor/components/CompressionSettings/CompressionSettings.jsx"></script>
+    <script type="text/babel" src="/module-ui/compressor/components/CompressionProgress/CompressionProgress.jsx"></script>
+    <script type="text/babel" src="/module-ui/compressor/components/CompressionResults/CompressionResults.jsx"></script>
+    <script type="text/babel" src="/module-ui/compressor/components/FilePreview/FilePreview.jsx"></script>
+    <script type="text/babel" src="/module-ui/compressor/app.jsx"></script>
+  
+<script>
+window.addEventListener('message', function(ev) {
+  if (ev.origin !== window.location.origin) return;
+  if (ev.data && ev.data.type === 'citadel:theme') {
+    document.documentElement.classList.toggle('dark', ev.data.theme === 'dark');
+  }
+});
+</script>
+</body>
+</html>

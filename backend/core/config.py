@@ -11,13 +11,14 @@ ASSETS_DIR = BASE_DIR / "assets"
 MODULES_DIR = BASE_DIR / "modules"
 
 PLATFORM_NAME = "CITADEL"
-PLATFORM_VERSION = "1.0.0"
+PLATFORM_VERSION = "1.1.0"
 PLATFORM_TAGLINE = "One Platform. Multiple Possibilities."
 CONTACT_EMAIL = "vishalsoundararajan16@gmail.com"
 
 # Upload & processing limits (configurable via environment variables, never hardcoded secrets)
-MAX_IMAGE_UPLOAD_BYTES = int(os.getenv("CITADEL_MAX_IMAGE_BYTES", str(30 * 1024 * 1024)))   # 30 MB
-MAX_PAYLOAD_TOTAL_BYTES = int(os.getenv("CITADEL_MAX_PAYLOAD_BYTES", str(30 * 1024 * 1024))) # 30 MB
+# Raised to support large lossless steganography PNGs (which expand significantly vs. JPEG carriers)
+MAX_IMAGE_UPLOAD_BYTES = int(os.getenv("CITADEL_MAX_IMAGE_BYTES", str(250 * 1024 * 1024)))   # 250 MB
+MAX_PAYLOAD_TOTAL_BYTES = int(os.getenv("CITADEL_MAX_PAYLOAD_BYTES", str(150 * 1024 * 1024))) # 150 MB
 MAX_FILES_PER_REQUEST = int(os.getenv("CITADEL_MAX_FILES", "25"))
 
 # Host & port defaults

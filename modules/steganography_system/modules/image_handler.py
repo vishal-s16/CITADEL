@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import warnings
 from dataclasses import dataclass
 from typing import Tuple
 
@@ -10,6 +11,10 @@ import numpy as np
 from PIL import Image, UnidentifiedImageError
 
 from modules.exceptions import InvalidImageError, UnsupportedImageFormatError
+
+# Allow high-resolution lossless PNG containers used for large steganography payloads
+Image.MAX_IMAGE_PIXELS = 300_000_000
+warnings.simplefilter("ignore", Image.DecompressionBombWarning)
 
 SUPPORTED_INPUT_FORMATS = {"PNG", "JPEG", "JPG"}
 # Reserve bytes for outer envelope header (28B) + salt (16B) + nonce (12B) + GCM tag (16B)
@@ -78,17 +83,12 @@ def load_and_prepare_container(
     filename: str = "image.png",
     allow_jpeg: bool = True,
 ) -> Tuple[np.ndarray, ImageInfo]:
-    """Validate an uploaded image, convert JPEG/non-RGB to lossless RGB array, and compute capacity."""
+    """Validate an uploaded image, convert JPEG/non-RGB to lossless RGB array, and compute capacity.
+
+    Uses a single-pass decode to avoid double full-image allocation on very large PNGs.
+    """
     if not image_bytes:
         raise InvalidImageError("Uploaded image file is empty.")
-
-    try:
-        with Image.open(io.BytesIO(image_bytes)) as img:
-            img.verify()
-    except (UnidentifiedImageError, OSError, SyntaxError, ValueError) as exc:
-        raise InvalidImageError(
-            "The uploaded file is not a valid or readable image."
-        ) from exc
 
     try:
         with Image.open(io.BytesIO(image_bytes)) as img:
@@ -106,19 +106,24 @@ def load_and_prepare_container(
                 )
 
             converted_from_jpeg = fmt in {"JPEG", "JPG"}
-            # Ensure lossless RGB representation for 3-channel LSB embedding
-            rgb_image = img.convert("RGB")
+            # Decode pixel data once and ensure lossless RGB representation
+            img.load()
+            rgb_image = img if img.mode == "RGB" else img.convert("RGB")
             width, height = rgb_image.size
-            pixel_array = np.array(rgb_image, dtype=np.uint8)
+            pixel_array = np.array(rgb_image, dtype=np.uint8, copy=True)
     except UnsupportedImageFormatError:
         raise
+    except Image.DecompressionBombError as exc:
+        raise InvalidImageError(
+            "Image resolution exceeds the maximum supported pixel limit (300 MP)."
+        ) from exc
     except MemoryError as exc:
         raise InvalidImageError(
             "Insufficient memory to process this image. Please try a smaller image."
         ) from exc
-    except (OSError, ValueError) as exc:
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError) as exc:
         raise InvalidImageError(
-            "The image appears to be corrupted and could not be decoded."
+            "The uploaded file is not a valid or readable image."
         ) from exc
 
     raw_capacity = calculate_raw_capacity(width, height)
@@ -145,7 +150,7 @@ def encode_array_to_png_bytes(pixel_array: np.ndarray) -> bytes:
     try:
         img = Image.fromarray(pixel_array, mode="RGB")
         buf = io.BytesIO()
-        img.save(buf, format="PNG", optimize=False)
+        img.save(buf, format="PNG", optimize=False, compress_level=1)
         return buf.getvalue()
     except MemoryError as exc:
         raise InvalidImageError(
@@ -153,3 +158,18 @@ def encode_array_to_png_bytes(pixel_array: np.ndarray) -> bytes:
         ) from exc
     except OSError as exc:
         raise InvalidImageError("Failed to generate the final PNG image.") from exc
+
+
+def make_preview_thumbnail_bytes(png_bytes: bytes, max_dim: int = 800) -> tuple[bytes, str]:
+    """Return a lightweight preview image (bytes, mime_type) to avoid huge base64 JSON payloads."""
+    if len(png_bytes) <= 2 * 1024 * 1024:
+        return png_bytes, "image/png"
+    try:
+        with Image.open(io.BytesIO(png_bytes)) as img:
+            thumb = img.convert("RGB")
+            thumb.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+            buf = io.BytesIO()
+            thumb.save(buf, format="JPEG", quality=85)
+            return buf.getvalue(), "image/jpeg"
+    except Exception:
+        return png_bytes, "image/png"

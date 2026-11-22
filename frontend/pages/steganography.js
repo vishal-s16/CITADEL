@@ -48,6 +48,7 @@ export async function renderSteganographyPage(container) {
     extractFile: null,
     extractPreviewUrl: null,
     extractInspection: null,
+    extractInspectToken: null,
   };
 
   container.innerHTML = `
@@ -982,6 +983,7 @@ export async function renderSteganographyPage(container) {
     state.extractFile = null;
     state.extractPreviewUrl = null;
     state.extractInspection = null;
+    state.extractInspectToken = null;
     extractFileInput.value = "";
     extractPasswordInput.value = "";
     hideAlert("extract-error");
@@ -1017,6 +1019,7 @@ export async function renderSteganographyPage(container) {
       state.extractFile = file;
       state.extractPreviewUrl = URL.createObjectURL(file);
       state.extractInspection = data;
+      state.extractInspectToken = data.inspect_token || null;
 
       $("extract-preview-img").src = state.extractPreviewUrl;
       $("ext-meta-name").textContent = data.image.filename;
@@ -1089,8 +1092,13 @@ export async function renderSteganographyPage(container) {
     }
 
     runExtractBtn.disabled = true;
+    runExtractBtn.textContent = "Extracting...";
     const formData = new FormData();
-    formData.append("image", state.extractFile);
+    if (state.extractInspectToken) {
+      formData.append("inspect_token", state.extractInspectToken);
+    } else {
+      formData.append("image", state.extractFile);
+    }
     if (extractPasswordInput.value) {
       formData.append("password", extractPasswordInput.value);
     }
@@ -1099,6 +1107,7 @@ export async function renderSteganographyPage(container) {
       const res = await fetch(`${API_BASE}/extract`, { method: "POST", body: formData });
       const data = await res.json();
       runExtractBtn.disabled = false;
+      runExtractBtn.textContent = "Extract Files";
 
       if (!res.ok || !data.ok) {
         showAlert("extract-error", data.message || "Extraction failed.");
@@ -1136,6 +1145,7 @@ export async function renderSteganographyPage(container) {
       $("extract-results-panel").classList.remove("hidden");
     } catch (_err) {
       runExtractBtn.disabled = false;
+      runExtractBtn.textContent = "Extract Files";
       showAlert("extract-error", "Network error during extraction. Please try again.");
     }
   });

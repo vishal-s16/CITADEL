@@ -7,9 +7,12 @@
 import { renderNavbar } from "../components/navbar.js";
 import { renderFooter } from "../components/footer.js";
 import { initMusicPlayer } from "../components/music-player.js";
+import { initIntroOverlay } from "../components/intro-overlay.js";
 import { renderHomePage } from "../pages/home.js";
 import { renderToolsPage } from "../pages/tools.js";
 import { renderSteganographyPage } from "../pages/steganography.js";
+import { renderDocReaderPage } from "../pages/docreader.js";
+import { renderCompressorPage } from "../pages/compressor.js";
 import { renderAboutPage } from "../pages/about.js";
 import { renderCreditsPage } from "../pages/credits.js";
 import { renderContactPage } from "../pages/contact.js";
@@ -19,6 +22,8 @@ const ROUTES = {
   "/": renderHomePage,
   "/tools": renderToolsPage,
   "/tools/steganography": renderSteganographyPage,
+  "/tools/docreader": renderDocReaderPage,
+  "/tools/compressor": renderCompressorPage,
   "/about": renderAboutPage,
   "/credits": renderCreditsPage,
   "/contact": renderContactPage,
@@ -89,6 +94,15 @@ export function navigateTo(url) {
 function bootstrap() {
   renderFooter(document.getElementById("citadel-footer"));
   initMusicPlayer(document.getElementById("citadel-music-player"));
+
+  // Show cinematic opening intro on initial load, then auto-start CITADEL theme music
+  initIntroOverlay({
+    onComplete: () => {
+      if (typeof window.citadelStartMusic === "function") {
+        window.citadelStartMusic();
+      }
+    },
+  });
 
   // Intercept internal SPA navigation clicks
   document.addEventListener("click", (e) => {

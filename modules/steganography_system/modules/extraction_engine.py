@@ -13,6 +13,9 @@ from modules.file_manager import PayloadFile
 from modules.image_handler import ImageInfo
 from modules.payload_manager import EnvelopeHeader
 
+# Extract 1 MB (8M bits) per chunk to avoid huge temporary NumPy allocations on large files
+_EXTRACT_CHUNK_BYTES = 1024 * 1024
+
 
 @dataclass(frozen=True)
 class InspectionResult:
@@ -56,9 +59,11 @@ def extract_bytes_from_rgb_array(
     byte_offset: int,
     num_bytes: int,
 ) -> bytes:
-    """Extract an exact slice of bytes from the LSBs of pixel_array."""
+    """Extract an exact slice of bytes from the LSBs of pixel_array using bounded chunked memory."""
     if byte_offset < 0 or num_bytes < 0:
         raise CorruptedPayloadError("Invalid extraction bounds.")
+    if num_bytes == 0:
+        return b""
 
     flat_pixels = pixel_array.reshape(-1)
     start_bit = byte_offset * 8
@@ -70,8 +75,20 @@ def extract_bytes_from_rgb_array(
             "The encoded image may have been cropped or corrupted."
         )
 
-    bits = flat_pixels[start_bit:end_bit] & np.uint8(1)
-    return np.packbits(bits, bitorder="big").tobytes()
+    if num_bytes <= _EXTRACT_CHUNK_BYTES:
+        bits = flat_pixels[start_bit:end_bit] & np.uint8(1)
+        return np.packbits(bits, bitorder="big").tobytes()
+
+    out = bytearray(num_bytes)
+    written = 0
+    while written < num_bytes:
+        chunk_len = min(_EXTRACT_CHUNK_BYTES, num_bytes - written)
+        c_start = (byte_offset + written) * 8
+        c_end = c_start + chunk_len * 8
+        bits = flat_pixels[c_start:c_end] & np.uint8(1)
+        out[written : written + chunk_len] = np.packbits(bits, bitorder="big").tobytes()
+        written += chunk_len
+    return bytes(out)
 
 
 def inspect_encoded_image(

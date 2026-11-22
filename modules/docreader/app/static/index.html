@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DOCREADER — All-in-One AI Document Reader</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <style>
+    html, body { height: 100%; }
+    .doc-html h1 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0 .5rem; }
+    .doc-html h2 { font-size: 1.25rem; font-weight: 600; margin: .9rem 0 .4rem; }
+    .doc-html h3 { font-size: 1.1rem; font-weight: 600; margin: .75rem 0 .35rem; }
+    .doc-html p { margin: .5rem 0; line-height: 1.65; }
+    .doc-html ul { list-style: disc; padding-left: 1.5rem; margin: .5rem 0; }
+    .doc-html ol { list-style: decimal; padding-left: 1.5rem; margin: .5rem 0; }
+    .doc-html pre { background: #0f172a; color: #f1f5f9; padding: 1rem; border-radius: .5rem; overflow-x: auto; font-size: .78rem; }
+    .doc-html table { width: 100%; border-collapse: collapse; margin: .75rem 0; font-size: .85rem; }
+    .doc-html th, .doc-html td { border: 1px solid #cbd5e1; padding: .45rem .65rem; text-align: left; }
+    .dark .doc-html th, .dark .doc-html td { border-color: #334155; }
+    .doc-html th { background: #f1f5f9; font-weight: 600; }
+    .dark .doc-html th { background: #1e293b; }
+    .doc-html mark { background: #fde047; color: #0f172a; border-radius: 2px; padding: 0 2px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased min-h-screen flex flex-col">
+
+  <!-- Top Navbar -->
+  <header class="sticky top-0 z-30 h-14 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur px-4 flex items-center justify-between">
+    <div class="flex items-center gap-3 min-w-0">
+      <button id="btnLogo" class="flex items-center gap-2.5 font-bold text-base tracking-tight">
+        <span class="h-8 w-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm font-extrabold">DR</span>
+        <span>DOCREADER</span>
+        <span class="hidden sm:inline rounded bg-indigo-50 dark:bg-indigo-950 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-indigo-700 dark:text-indigo-300">AI Suite</span>
+      </button>
+      <span id="navDocTitle" class="hidden md:inline truncate max-w-md border-l border-slate-200 dark:border-slate-700 pl-3 text-sm text-slate-600 dark:text-slate-300 font-medium"></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-xs font-medium">
+        <button id="navDashboard" class="rounded-md px-3 py-1.5 bg-white dark:bg-slate-700 shadow-sm">Dashboard</button>
+        <button id="navReader" disabled class="rounded-md px-3 py-1.5 text-slate-500 disabled:opacity-40">Reader</button>
+      </div>
+      <button id="btnTheme" title="Toggle dark/light mode" class="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-sm hover:bg-slate-100 dark:hover:bg-slate-800">🌓</button>
+    </div>
+  </header>
+
+  <!-- Error Banner -->
+  <div id="errorBox" class="hidden mx-auto w-full max-w-7xl px-4 pt-3">
+    <div class="flex items-center justify-between gap-3 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/60 px-4 py-2.5 text-sm text-red-800 dark:text-red-200">
+      <span id="errorText"></span>
+      <button onclick="hideError()" class="font-bold px-2">✕</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <main id="dashboardView" class="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">Document Intelligence Workspace</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Upload, preview, extract text &amp; tables, run OCR, search, listen, and ask AI across 22 formats.</p>
+      </div>
+      <span id="securityBadge" class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+        Magic-byte verified · Auto-TTL
+      </span>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+        <div class="text-xs text-slate-500">Documents Processed</div>
+        <div id="statDocs" class="mt-1 text-2xl font-bold">0</div>
+        <div id="statSize" class="text-xs text-slate-400">0 B</div>
+      </div>
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+        <div class="text-xs text-slate-500">Total Pages</div>
+        <div id="statPages" class="mt-1 text-2xl font-bold">0</div>
+        <div id="statWords" class="text-xs text-slate-400">0 words</div>
+      </div>
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+        <div class="text-xs text-slate-500">Tables Extracted</div>
+        <div id="statTables" class="mt-1 text-2xl font-bold">0</div>
+        <div class="text-xs text-slate-400">Structured rows &amp; columns</div>
+      </div>
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
+        <div class="text-xs text-slate-500">OCR Processed</div>
+        <div id="statOcr" class="mt-1 text-2xl font-bold">0</div>
+        <div id="statOcrLangs" class="text-xs text-slate-400">Tesseract OCR</div>
+      </div>
+    </div>
+
+    <!-- Upload Dropzone -->
+    <div id="dropZone" class="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 text-center transition-colors">
+      <div class="text-3xl mb-2">📄</div>
+      <h2 class="text-base font-semibold">Drop documents here, or browse your files</h2>
+      <p id="uploadHint" class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, CSV, TXT, RTF, MD, ODT, ODS, ODP, HTML, XML, JSON, PNG, JPG, JPEG, WEBP, TIFF
+      </p>
+      <div class="mt-4 flex flex-wrap items-center justify-center gap-3">
+        <button id="btnBrowse" class="rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 text-sm font-medium shadow-sm">Browse Files</button>
+        <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs">
+          <span>OCR Language:</span>
+          <select id="ocrLangSelect" class="bg-transparent font-medium focus:outline-none"><option value="eng">ENG</option></select>
+        </label>
+      </div>
+      <input id="fileInput" type="file" multiple class="hidden" />
+    </div>
+
+    <!-- Upload Queue -->
+    <div id="uploadQueueWrap" class="hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-2">
+      <div class="flex items-center justify-between text-xs font-semibold uppercase text-slate-500">
+        <span>Upload &amp; Processing Status</span>
+        <button id="btnClearQueue" class="text-indigo-600 hover:underline normal-case">Clear finished</button>
+      </div>
+      <div id="uploadQueue" class="space-y-2"></div>
+    </div>
+
+    <!-- Recent Documents + Supported Formats -->
+    <div class="grid lg:grid-cols-3 gap-6">
+      <section class="lg:col-span-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-semibold">Recent Documents</h2>
+          <button id="btnClearHistory" class="hidden text-xs font-medium text-red-600 hover:underline">Clear History</button>
+        </div>
+        <div id="docList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5">
+        <h2 class="text-base font-semibold mb-4">Supported Formats (22)</h2>
+        <div id="formatList" class="space-y-3 text-xs"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- THREE-PANEL WORKSPACE VIEW -->
+  <div id="workspaceView" class="hidden flex-1 flex h-[calc(100vh-3.5rem)] overflow-hidden">
+    <!-- Left Panel: Pages & Outline -->
+    <aside id="leftPanel" class="w-60 shrink-0 hidden md:flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+      <div class="flex border-b border-slate-200 dark:border-slate-800 text-xs font-medium">
+        <button id="leftTabPages" class="flex-1 py-2.5 border-b-2 border-indigo-600 text-indigo-600">Pages</button>
+        <button id="leftTabOutline" class="flex-1 py-2.5 border-b-2 border-transparent text-slate-500">Outline</button>
+      </div>
+      <div id="leftBody" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+    </aside>
+
+    <!-- Center Panel: Document Viewer + TTS -->
+    <section id="viewerSection" class="flex-1 min-w-0 flex flex-col bg-slate-100 dark:bg-slate-950">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs">
+        <div class="flex items-center gap-1.5">
+          <button id="btnToggleLeft" title="Toggle left panel" class="rounded px-2 py-1 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">◧</button>
+          <button id="btnPrevPage" class="rounded px-2 py-1 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40">◀</button>
+          <span id="pageIndicator" class="px-1.5 font-medium">Page 1 / 1</span>
+          <button id="btnNextPage" class="rounded px-2 py-1 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40">▶</button>
+          <button id="btnToggleViewMode" class="hidden rounded px-2 py-1 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">Switch to Text</button>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button id="btnExplainSel" class="hidden rounded bg-indigo-600 text-white px-2.5 py-1 font-medium">✨ Explain Selection</button>
+          <button id="btnZoomOut" class="rounded px-2 py-1 border border-slate-200 dark:border-slate-700">−</button>
+          <span id="zoomLabel" class="w-10 text-center font-medium">100%</span>
+          <button id="btnZoomIn" class="rounded px-2 py-1 border border-slate-200 dark:border-slate-700">+</button>
+          <button id="btnFullscreen" title="Fullscreen" class="rounded px-2 py-1 border border-slate-200 dark:border-slate-700">⛶</button>
+          <button id="btnToggleRight" title="Toggle right panel" class="rounded px-2 py-1 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">◨</button>
+        </div>
+      </div>
+
+      <div id="viewerScroll" class="flex-1 overflow-auto p-4 sm:p-6">
+        <div id="viewerCanvas" class="mx-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm" style="max-width: 860px;"></div>
+      </div>
+
+      <!-- Text-to-Speech Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs">
+        <div class="flex items-center gap-1.5">
+          <span class="font-medium">🔊 Read Aloud</span>
+          <button id="ttsPrev" class="rounded px-1.5 py-1 border border-slate-200 dark:border-slate-700">⏮</button>
+          <button id="ttsPlay" class="rounded-full bg-indigo-600 text-white px-3 py-1 font-medium">Play</button>
+          <button id="ttsStop" class="rounded px-1.5 py-1 border border-slate-200 dark:border-slate-700">⏹</button>
+          <button id="ttsNext" class="rounded px-1.5 py-1 border border-slate-200 dark:border-slate-700">⏭</button>
+          <span id="ttsStatus" class="text-slate-500 ml-1">Para 0/0</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-1">Speed: <span id="ttsRateLabel">1.0x</span>
+            <input id="ttsRate" type="range" min="0.5" max="2.0" step="0.1" value="1.0" class="w-20 accent-indigo-600" />
+          </label>
+          <select id="ttsVoice" class="max-w-[150px] rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-1.5 py-1"></select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Panel: AI, Text, Search, Info -->
+    <aside id="rightPanel" class="w-96 shrink-0 hidden lg:flex flex-col border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+      <div class="flex border-b border-slate-200 dark:border-slate-800 text-xs font-medium">
+        <button data-rtab="ai" class="rtab flex-1 py-2.5 border-b-2 border-indigo-600 text-indigo-600">AI</button>
+        <button data-rtab="text" class="rtab flex-1 py-2.5 border-b-2 border-transparent text-slate-500">Text</button>
+        <button data-rtab="search" class="rtab flex-1 py-2.5 border-b-2 border-transparent text-slate-500">Search</button>
+        <button data-rtab="info" class="rtab flex-1 py-2.5 border-b-2 border-transparent text-slate-500">Info</button>
+      </div>
+      <div id="rightBody" class="flex-1 overflow-hidden flex flex-col"></div>
+    </aside>
+  </div>
+
+<script>
+const state = {
+  health: null,
+  stats: null,
+  documents: [],
+  activeDoc: null,
+  currentPage: 1,
+  zoom: 100,
+  viewMode: 'rendered',
+  leftTab: 'pages',
+  rightTab: 'ai',
+  searchQuery: '',
+  caseSensitive: false,
+  searchMatches: [],
+  aiMessages: [],
+  allowExternalAi: false,
+  selectedText: '',
+  ttsIndex: 0,
+  ttsPlaying: false,
+  ttsPaused: false,
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtBytes = (b) => {
+  if (!b) return '0 B';
+  const u = ['B','KB','MB','GB'], i = Math.min(3, Math.floor(Math.log(b)/Math.log(1024)));
+  return (b / Math.pow(1024, i)).toFixed(i ? 1 : 0) + ' ' + u[i];
+};
+
+function showError(msg) { $('errorText').textContent = msg; $('errorBox').classList.remove('hidden'); }
+function hideError() { $('errorBox').classList.add('hidden'); }
+
+// Theme
+if (localStorage.getItem('docreader-theme') === 'dark') document.documentElement.classList.add('dark');
+$('btnTheme').onclick = () => {
+  const isDark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('docreader-theme', isDark ? 'dark' : 'light');
+};
+
+// Navigation
+function setView(v) {
+  const isWs = v === 'workspace' && state.activeDoc;
+  $('dashboardView').classList.toggle('hidden', isWs);
+  $('workspaceView').classList.toggle('hidden', !isWs);
+  $('navDashboard').className = isWs ? 'rounded-md px-3 py-1.5 text-slate-500' : 'rounded-md px-3 py-1.5 bg-white dark:bg-slate-700 shadow-sm';
+  $('navReader').className = isWs ? 'rounded-md px-3 py-1.5 bg-white dark:bg-slate-700 shadow-sm' : 'rounded-md px-3 py-1.5 text-slate-500 disabled:opacity-40';
+  $('navDocTitle').textContent = isWs ? state.activeDoc.filename : '';
+  $('navDocTitle').classList.toggle('hidden', !isWs);
+}
+$('btnLogo').onclick = $('navDashboard').onclick = () => setView('dashboard');
+$('navReader').onclick = () => state.activeDoc && setView('workspace');
+
+// Load Dashboard Data
+async function refreshDashboard() {
+  try {
+    const [h, s, docs] = await Promise.all([
+      fetch('/api/modules/docreader/health').then((r) => r.json()),
+      fetch('/api/modules/docreader/stats').then((r) => r.json()),
+      fetch('/api/modules/docreader/documents').then((r) => r.json()),
+    ]);
+    state.health = h; state.stats = s; state.documents = docs;
+    $('statDocs').textContent = s.total_documents;
+    $('statSize').textContent = fmtBytes(s.storage_bytes);
+    $('statPages').textContent = s.total_pages.toLocaleString();
+    $('statWords').textContent = `${s.total_words.toLocaleString()} words extracted`;
+    $('statTables').textContent = s.total_tables.toLocaleString();
+    $('statOcr').textContent = s.ocr_documents;
+    $('statOcrLangs').textContent = `Tesseract (${(h.ocr_languages || ['eng']).join(', ')})`;
+    $('securityBadge').textContent = `Magic-byte verified · Auto-TTL (${h.temp_file_ttl_minutes}m) · Max ${h.max_file_size_mb} MB`;
+
+    const sel = $('ocrLangSelect');
+    const prev = sel.value;
+    sel.innerHTML = (h.ocr_languages || ['eng']).map((l) => `<option value="${esc(l)}">${esc(l.toUpperCase())}</option>`).join('');
+    if (prev) sel.value = prev;
+
+    // Formats
+    const grouped = {};
+    (s.supported_formats || []).forEach((f) => { (grouped[f.category] = grouped[f.category] || []).push(f.format); });
+    $('formatList').innerHTML = Object.entries(grouped).map(([cat, fmts]) =>
+      `<div><div class="font-semibold uppercase text-slate-400 text-[10px] mb-1">${esc(cat)}</div><div class="flex flex-wrap gap-1">${
+        fmts.map((f) => `<span class="rounded bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-medium">${esc(f)}</span>`).join('')
+      }</div></div>`
+    ).join('');
+
+    // Recent docs
+    $('btnClearHistory').classList.toggle('hidden', docs.length === 0);
+    $('docList').innerHTML = docs.length === 0
+      ? '<p class="py-10 text-center text-sm text-slate-400">No documents yet. Upload any supported file above to start reading.</p>'
+      : docs.map((d) => `
+        <div class="flex items-center justify-between gap-3 py-3">
+          <button onclick="openDoc('${d.id}')" class="flex items-center gap-3 text-left min-w-0 flex-1 group">
+            <span class="h-10 w-10 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 font-bold text-xs uppercase flex items-center justify-center">${esc(d.detected_format)}</span>
+            <div class="min-w-0">
+              <div class="truncate text-sm font-medium group-hover:text-indigo-600">${esc(d.filename)}</div>
+              <div class="text-xs text-slate-500">${fmtBytes(d.file_size)} · ${d.page_count} page(s) · ${d.word_count.toLocaleString()} words${d.table_count ? ` · ${d.table_count} tables` : ''}${d.ocr_used ? ' · OCR' : ''}</div>
+            </div>
+          </button>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="openDoc('${d.id}')" class="rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800">Open</button>
+            <button onclick="deleteDoc('${d.id}')" class="rounded-lg px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40">✕</button>
+          </div>
+        </div>`).join('');
+  } catch (e) { showError('Could not connect to DOCREADER backend: ' + e.message); }
+}
+
+// Upload with XHR progress & cancel
+function handleFiles(fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  hideError();
+  $('uploadQueueWrap').classList.remove('hidden');
+
+  files.forEach((file) => {
+    const rowId = 'q_' + Math.random().toString(36).slice(2);
+    const row = document.createElement('div');
+    row.id = rowId;
+    row.className = 'rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3 text-xs';
+    row.innerHTML = `
+      <div class="flex items-center justify-between gap-2">
+        <span class="font-medium truncate">${esc(file.name)} (${fmtBytes(file.size)})</span>
+        <span class="status-actions flex items-center gap-2">
+          <button class="cancel-btn rounded border border-slate-300 dark:border-slate-700 px-2 py-0.5">Cancel</button>
+        </span>
+      </div>
+      <div class="mt-2 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><div class="bar h-full bg-indigo-600 transition-all" style="width:8%"></div></div>
+      <div class="msg mt-1 text-slate-500">Uploading…</div>`;
+    $('uploadQueue').prepend(row);
+
+    const xhr = new XMLHttpRequest();
+    const fd = new FormData();
+    fd.append('files', file);
+    fd.append('ocr_lang', $('ocrLangSelect').value || 'eng');
+    row.querySelector('.cancel-btn').onclick = () => xhr.abort();
+
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) {
+        const pct = Math.min(92, Math.round((ev.loaded / ev.total) * 90));
+        row.querySelector('.bar').style.width = pct + '%';
+        row.querySelector('.msg').textContent = pct >= 90 ? 'Parsing & indexing…' : `Uploading ${pct}%…`;
+      }
+    };
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText || '{}');
+        if (xhr.status >= 200 && xhr.status < 300 && data.documents?.[0]) {
+          const doc = data.documents[0];
+          row.querySelector('.bar').style.width = '100%';
+          row.querySelector('.bar').classList.replace('bg-indigo-600', 'bg-emerald-500');
+          row.querySelector('.msg').textContent = `Completed (${doc.detected_format.toUpperCase()}, ${doc.page_count} page(s))`;
+          row.querySelector('.status-actions').innerHTML = `<button onclick="openDoc('${doc.id}')" class="rounded bg-indigo-600 text-white px-2.5 py-0.5">Open</button>`;
+          row.dataset.done = '1';
+          refreshDashboard();
+          if (files.length === 1) openDoc(doc.id);
+        } else {
+          const errMsg = data?.detail?.message || data?.errors?.[0]?.message || data?.detail || `Failed (${xhr.status})`;
+          row.querySelector('.bar').classList.replace('bg-indigo-600', 'bg-red-500');
+          row.querySelector('.msg').className = 'msg mt-1 text-red-600';
+          row.querySelector('.msg').textContent = errMsg;
+          row.querySelector('.status-actions').innerHTML = '';
+          row.dataset.done = '1';
+        }
+      } catch {
+        row.querySelector('.msg').textContent = `Upload failed (${xhr.status})`;
+        row.dataset.done = '1';
+      }
+    };
+    xhr.onabort = () => { row.querySelector('.msg').textContent = 'Cancelled by user.'; row.querySelector('.status-actions').innerHTML = ''; row.dataset.done = '1'; };
+    xhr.onerror = () => { row.querySelector('.msg').textContent = 'Network error.'; row.querySelector('.status-actions').innerHTML = ''; row.dataset.done = '1'; };
+    xhr.open('POST', '/api/modules/docreader/documents/upload');
+    xhr.send(fd);
+  });
+}
+
+$('btnBrowse').onclick = () => $('fileInput').click();
+$('fileInput').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
+$('dropZone').ondragover = (e) => { e.preventDefault(); $('dropZone').classList.add('border-indigo-500', 'bg-indigo-50/40'); };
+$('dropZone').ondragleave = () => $('dropZone').classList.remove('border-indigo-500', 'bg-indigo-50/40');
+$('dropZone').ondrop = (e) => { e.preventDefault(); $('dropZone').classList.remove('border-indigo-500', 'bg-indigo-50/40'); handleFiles(e.dataTransfer.files); };
+$('btnClearQueue').onclick = () => {
+  Array.from($('uploadQueue').children).forEach((c) => { if (c.dataset.done) c.remove(); });
+  if (!$('uploadQueue').children.length) $('uploadQueueWrap').classList.add('hidden');
+};
+
+async function openDoc(id) {
+  hideError();
+  try {
+    const res = await fetch(`/api/modules/docreader/documents/${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error('Document not found');
+    state.activeDoc = await res.json();
+    state.currentPage = 1;
+    state.zoom = 100;
+    state.viewMode = 'rendered';
+    state.searchQuery = '';
+    state.searchMatches = [];
+    state.aiMessages = [];
+    stopTTS();
+    $('navReader').disabled = false;
+    setView('workspace');
+    renderWorkspace();
+  } catch (e) { showError(e.message); }
+}
+window.openDoc = openDoc;
+
+async function deleteDoc(id) {
+  await fetch(`/api/modules/docreader/documents/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (state.activeDoc?.id === id) { state.activeDoc = null; $('navReader').disabled = true; setView('dashboard'); }
+  refreshDashboard();
+}
+window.deleteDoc = deleteDoc;
+
+$('btnClearHistory').onclick = async () => {
+  await fetch('/api/modules/docreader/documents', { method: 'DELETE' });
+  state.activeDoc = null; $('navReader').disabled = true; setView('dashboard');
+  refreshDashboard();
+};
+
+// Workspace Rendering
+function renderWorkspace() {
+  renderLeftPanel();
+  renderViewer();
+  renderRightPanel();
+  updateTTSUi();
+}
+
+function renderLeftPanel() {
+  const doc = state.activeDoc;
+  $('leftTabPages').className = state.leftTab === 'pages' ? 'flex-1 py-2.5 border-b-2 border-indigo-600 text-indigo-600' : 'flex-1 py-2.5 border-b-2 border-transparent text-slate-500';
+  $('leftTabOutline').className = state.leftTab === 'outline' ? 'flex-1 py-2.5 border-b-2 border-indigo-600 text-indigo-600' : 'flex-1 py-2.5 border-b-2 border-transparent text-slate-500';
+
+  if (state.leftTab === 'pages') {
+    $('leftBody').innerHTML = doc.pages.map((p) => {
+      const active = p.page_number === state.currentPage;
+      const thumb = p.has_image_preview
+        ? `<img src="/api/modules/docreader/documents/${doc.id}/pages/${p.page_number}/image?thumbnail=true" loading="lazy" class="mx-auto max-h-32 w-full object-contain rounded mb-1.5 bg-slate-100 dark:bg-slate-800" />`
+        : `<div class="h-10 rounded bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-1">📄</div>`;
+      return `<button onclick="jumpPage(${p.page_number})" class="w-full rounded-xl border p-2 text-left text-xs ${active ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40' : 'border-slate-200 dark:border-slate-800'}">
+        ${thumb}<div class="flex justify-between gap-1"><span class="truncate font-medium">${esc(p.title || 'Page ' + p.page_number)}</span><span class="text-slate-400">${p.page_number}</span></div>
+      </button>`;
+    }).join('');
+  } else {
+    $('leftBody').innerHTML = doc.outline.length === 0
+      ? '<p class="py-8 text-center text-xs text-slate-400">No outline headings detected.</p>'
+      : doc.outline.map((o) => `<button onclick="jumpPage(${o.page_number})" style="padding-left:${Math.min(4, o.level-1)*10+8}px" class="w-full flex justify-between rounded-lg px-2 py-1.5 text-left text-xs hover:bg-slate-100 dark:hover:bg-slate-800"><span class="truncate">${esc(o.title)}</span><span class="text-slate-400">p.${o.page_number}</span></button>`).join('');
+  }
+}
+$('leftTabPages').onclick = () => { state.leftTab = 'pages'; renderLeftPanel(); };
+$('leftTabOutline').onclick = () => { state.leftTab = 'outline'; renderLeftPanel(); };
+
+function jumpPage(n) {
+  const max = state.activeDoc.pages.length;
+  state.currentPage = Math.max(1, Math.min(max, n));
+  renderLeftPanel();
+  renderViewer();
+}
+window.jumpPage = jumpPage;
+
+function highlightPlain(text) {
+  const safe = esc(text);
+  if (!state.searchQuery.trim()) return safe;
+  const rx = new RegExp('(' + state.searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', state.caseSensitive ? 'g' : 'gi');
+  return safe.replace(rx, '<mark class="bg-amber-300 text-slate-950 rounded px-0.5">$1</mark>');
+}
+
+function renderViewer() {
+  const doc = state.activeDoc;
+  const p = doc.pages.find((x) => x.page_number === state.currentPage) || doc.pages[0];
+  $('pageIndicator').textContent = `Page ${state.currentPage} / ${doc.pages.length}`;
+  $('btnPrevPage').disabled = state.currentPage <= 1;
+  $('btnNextPage').disabled = state.currentPage >= doc.pages.length;
+  $('zoomLabel').textContent = state.zoom + '%';
+  $('viewerCanvas').style.maxWidth = Math.round(860 * (state.zoom / 100)) + 'px';
+  $('viewerCanvas').style.fontSize = state.zoom + '%';
+
+  $('btnToggleViewMode').classList.toggle('hidden', !p?.has_image_preview);
+  $('btnToggleViewMode').textContent = state.viewMode === 'rendered' ? 'Text View' : 'Page View';
+
+  if (!p) { $('viewerCanvas').innerHTML = '<p class="text-slate-400 text-center py-12">No pages.</p>'; return; }
+
+  if (p.has_image_preview && state.viewMode === 'rendered') {
+    $('viewerCanvas').innerHTML = `
+      <img src="/api/modules/docreader/documents/${doc.id}/pages/${p.page_number}/image?dpi=150" class="mx-auto w-full rounded-lg border border-slate-200 dark:border-slate-800" />
+      ${p.text ? `<details class="mt-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3 text-xs"><summary class="cursor-pointer font-medium">Selectable Text (${p.ocr_applied ? 'OCR' : 'Embedded'})</summary><div class="mt-2 whitespace-pre-wrap select-text">${highlightPlain(p.text)}</div></details>` : ''}`;
+  } else if (p.html && state.viewMode === 'rendered') {
+    let htmlStr = p.html;
+    if (state.searchQuery.trim()) {
+      const rx = new RegExp('(' + state.searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', state.caseSensitive ? 'g' : 'gi');
+      htmlStr = htmlStr.replace(/(<[^>]+>)|([^<]+)/g, (_, tag, txt) => tag ? tag : txt.replace(rx, '<mark>$1</mark>'));
+    }
+    $('viewerCanvas').innerHTML = `<div class="doc-html select-text overflow-x-auto">${htmlStr}</div>`;
+  } else {
+    $('viewerCanvas').innerHTML = `<div class="whitespace-pre-wrap select-text text-sm leading-relaxed">${highlightPlain(p.text || '(No text extracted)')}</div>`;
+  }
+}
+
+$('btnPrevPage').onclick = () => jumpPage(state.currentPage - 1);
+$('btnNextPage').onclick = () => jumpPage(state.currentPage + 1);
+$('btnZoomIn').onclick = () => { state.zoom = Math.min(220, state.zoom + 15); renderViewer(); };
+$('btnZoomOut').onclick = () => { state.zoom = Math.max(50, state.zoom - 15); renderViewer(); };
+$('btnToggleViewMode').onclick = () => { state.viewMode = state.viewMode === 'rendered' ? 'text' : 'rendered'; renderViewer(); };
+$('btnToggleLeft').onclick = () => $('leftPanel').classList.toggle('md:flex');
+$('btnToggleRight').onclick = () => $('rightPanel').classList.toggle('lg:flex');
+$('btnFullscreen').onclick = () => {
+  if (!document.fullscreenElement) $('viewerSection').requestFullscreen?.();
+  else document.exitFullscreen?.();
+};
+$('viewerScroll').onmouseup = () => {
+  const s = window.getSelection()?.toString().trim() || '';
+  state.selectedText = s.length >= 10 ? s : '';
+  $('btnExplainSel').classList.toggle('hidden', !state.selectedText);
+};
+$('btnExplainSel').onclick = () => {
+  const txt = state.selectedText;
+  if (!txt) return;
+  state.selectedText = '';
+  $('btnExplainSel').classList.add('hidden');
+  state.rightTab = 'ai';
+  renderRightPanel();
+  runAI('explain_paragraph', `Explain selection: "${txt.slice(0, 80)}…"`, null, txt);
+};
+
+// Right Panel Tabs
+document.querySelectorAll('.rtab').forEach((btn) => {
+  btn.onclick = () => { state.rightTab = btn.dataset.rtab; renderRightPanel(); };
+});
+
+function renderRightPanel() {
+  document.querySelectorAll('.rtab').forEach((btn) => {
+    const active = btn.dataset.rtab === state.rightTab;
+    btn.className = active
+      ? 'rtab flex-1 py-2.5 border-b-2 border-indigo-600 text-indigo-600'
+      : 'rtab flex-1 py-2.5 border-b-2 border-transparent text-slate-500';
+  });
+  const doc = state.activeDoc;
+  const body = $('rightBody');
+
+  if (state.rightTab === 'ai') {
+    const extCfg = state.health?.external_ai_configured;
+    body.innerHTML = `
+      <div class="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 px-3 py-2 text-[11px] flex justify-between items-center">
+        <span class="text-slate-500">${extCfg ? 'External LLM consent' : 'Private Local RAG mode'}</span>
+        ${extCfg ? `<label class="flex items-center gap-1 cursor-pointer"><input id="chkExtAi" type="checkbox" ${state.allowExternalAi ? 'checked' : ''} /> Allow cloud AI</label>` : ''}
+      </div>
+      <div class="grid grid-cols-2 gap-1.5 border-b border-slate-200 dark:border-slate-800 p-2.5 text-xs">
+        <button onclick="runAI('summarize','Summarize this document')" class="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800">Summarize</button>
+        <button onclick="runAI('key_points','Generate key points')" class="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800">Key Points</button>
+        <button onclick="runAI('extract_entities','Extract dates and names')" class="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800">Dates &amp; Names</button>
+        <button onclick="runAI('explain_tables','Explain tables')" class="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800">Explain Tables</button>
+      </div>
+      <div id="aiChatLog" class="flex-1 overflow-y-auto p-3 space-y-2.5 text-xs">
+        ${state.aiMessages.length === 0
+          ? '<p class="py-10 text-center text-slate-400">Ask any question about this document. Answers are grounded strictly in the uploaded file.</p>'
+          : state.aiMessages.map((m) => `
+            <div class="rounded-xl p-2.5 ${m.role === 'user' ? 'ml-6 bg-indigo-600 text-white' : 'mr-2 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950'}">
+              <div class="whitespace-pre-wrap">${esc(m.content)}</div>
+              ${m.citations?.length ? `<div class="mt-2 flex flex-wrap gap-1">${m.citations.map((c) => `<button onclick="jumpPage(${c.page_number})" class="rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 text-[10px]">Page ${c.page_number}</button>`).join('')}</div>` : ''}
+            </div>`).join('')}
+      </div>
+      <form id="aiForm" class="border-t border-slate-200 dark:border-slate-800 p-2.5 flex gap-2">
+        <input id="aiInput" type="text" placeholder="Ask a question…" class="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs focus:outline-none" />
+        <button type="submit" class="rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-xs font-medium">Send</button>
+      </form>`;
+    if ($('chkExtAi')) $('chkExtAi').onchange = (e) => { state.allowExternalAi = e.target.checked; };
+    $('aiForm').onsubmit = (e) => {
+      e.preventDefault();
+      const q = $('aiInput').value.trim();
+      if (!q) return;
+      $('aiInput').value = '';
+      runAI('ask', q, q);
+    };
+  } else if (state.rightTab === 'text') {
+    body.innerHTML = `
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-3 py-2 text-xs">
+        <span class="text-slate-500">${doc.word_count.toLocaleString()} words</span>
+        <div class="flex gap-1.5">
+          <button id="btnCopyText" class="rounded border border-slate-200 dark:border-slate-700 px-2 py-1">Copy</button>
+          <a href="/api/modules/docreader/documents/${doc.id}/text" download class="rounded bg-indigo-600 text-white px-2 py-1">Download .TXT</a>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto p-3"><pre class="whitespace-pre-wrap font-sans text-xs leading-relaxed select-text">${esc(doc.full_text || '(No text extracted)')}</pre></div>`;
+    $('btnCopyText').onclick = async () => { await navigator.clipboard.writeText(doc.full_text || ''); $('btnCopyText').textContent = 'Copied!'; setTimeout(() => { if ($('btnCopyText')) $('btnCopyText').textContent = 'Copy'; }, 1500); };
+  } else if (state.rightTab === 'search') {
+    body.innerHTML = `
+      <form id="searchForm" class="p-3 border-b border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+        <input id="searchInput" type="text" value="${esc(state.searchQuery)}" placeholder="Search words or phrases…" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5" />
+        <div class="flex items-center justify-between">
+          <label class="flex items-center gap-1.5 cursor-pointer"><input id="searchCs" type="checkbox" ${state.caseSensitive ? 'checked' : ''} /> Case sensitive</label>
+          <button type="submit" class="rounded bg-indigo-600 text-white px-3 py-1 font-medium">Search</button>
+        </div>
+      </form>
+      <div class="flex-1 overflow-y-auto p-3 space-y-2 text-xs">
+        ${state.searchMatches.length ? `<div class="text-slate-400">${state.searchMatches.length} match(es)</div>` : ''}
+        ${state.searchMatches.map((m) => `
+          <button onclick="jumpPage(${m.page_number})" class="w-full text-left rounded-lg border border-slate-200 dark:border-slate-800 p-2 hover:border-indigo-400">
+            <span class="rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 text-[10px] font-semibold">Page ${m.page_number}</span>
+            <p class="mt-1 text-slate-600 dark:text-slate-300">${esc(m.snippet)}</p>
+          </button>`).join('')}
+      </div>`;
+    $('searchForm').onsubmit = async (e) => {
+      e.preventDefault();
+      state.searchQuery = $('searchInput').value.trim();
+      state.caseSensitive = $('searchCs').checked;
+      if (!state.searchQuery) { state.searchMatches = []; renderViewer(); renderRightPanel(); return; }
+      const res = await fetch(`/api/modules/docreader/documents/${doc.id}/search?q=${encodeURIComponent(state.searchQuery)}&case_sensitive=${state.caseSensitive}`).then((r) => r.json());
+      state.searchMatches = res.matches || [];
+      renderViewer();
+      renderRightPanel();
+    };
+  } else {
+    const canOcr = ['pdf','png','jpg','jpeg','webp','tiff'].includes(doc.detected_format);
+    body.innerHTML = `
+      <div class="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
+        <div class="divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800">
+          ${[
+            ['File', doc.filename],
+            ['Format', `${doc.detected_format.toUpperCase()} (${doc.category})`],
+            ['Size', fmtBytes(doc.file_size)],
+            ['Pages', doc.page_count],
+            ['Words', doc.word_count.toLocaleString()],
+            ['Tables', doc.table_count],
+            ['OCR Used', doc.ocr_used ? 'Yes' : 'No'],
+          ].map(([k, v]) => `<div class="flex justify-between gap-2 px-3 py-2"><span class="text-slate-500">${esc(k)}</span><span class="font-medium text-right break-all">${esc(v)}</span></div>`).join('')}
+        </div>
+        ${canOcr ? `<div class="rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-2">
+          <div class="font-semibold">OCR Engine</div>
+          <button id="btnRerunOcr" class="w-full rounded-lg bg-amber-600 hover:bg-amber-500 text-white py-1.5 font-medium">Run OCR on All Pages</button>
+        </div>` : ''}
+      </div>`;
+    if ($('btnRerunOcr')) {
+      $('btnRerunOcr').onclick = async () => {
+        $('btnRerunOcr').textContent = 'Running OCR…'; $('btnRerunOcr').disabled = true;
+        const updated = await fetch(`/api/modules/docreader/documents/${doc.id}/ocr`, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ language: $('ocrLangSelect').value || 'eng', force_all_pages: true }),
+        }).then((r) => r.json());
+        state.activeDoc = updated;
+        renderWorkspace();
+      };
+    }
+  }
+}
+
+async function runAI(action, label, question = null, paragraphText = null) {
+  state.aiMessages.push({ role: 'user', content: label });
+  renderRightPanel();
+  try {
+    const res = await fetch(`/api/modules/docreader/documents/${state.activeDoc.id}/ai`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action, question, paragraph_text: paragraphText, allow_external_ai: state.allowExternalAi }),
+    }).then((r) => r.json());
+    state.aiMessages.push({ role: 'assistant', content: res.answer || 'No response.', citations: res.citations || [] });
+  } catch (e) {
+    state.aiMessages.push({ role: 'assistant', content: 'AI request failed: ' + e.message });
+  }
+  renderRightPanel();
+  const log = $('aiChatLog'); if (log) log.scrollTop = log.scrollHeight;
+}
+window.runAI = runAI;
+
+// Text-to-Speech (Web Speech API)
+function loadVoices() {
+  if (!('speechSynthesis' in window)) return;
+  const vs = speechSynthesis.getVoices();
+  $('ttsVoice').innerHTML = vs.map((v) => `<option value="${esc(v.voiceURI)}">${esc(v.name)}</option>`).join('');
+}
+if ('speechSynthesis' in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+
+function updateTTSUi() {
+  const total = state.activeDoc?.paragraphs?.length || 0;
+  $('ttsStatus').textContent = `Para ${total ? state.ttsIndex + 1 : 0}/${total}`;
+  $('ttsPlay').textContent = state.ttsPlaying && !state.ttsPaused ? 'Pause' : 'Play';
+}
+function stopTTS() {
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  state.ttsPlaying = false; state.ttsPaused = false; state.ttsIndex = 0; updateTTSUi();
+}
+function speakIdx(i) {
+  const paras = state.activeDoc?.paragraphs || [];
+  if (!paras.length || !('speechSynthesis' in window)) return;
+  state.ttsIndex = Math.max(0, Math.min(i, paras.length - 1));
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(paras[state.ttsIndex]);
+  u.rate = Number($('ttsRate').value || 1.0);
+  const v = speechSynthesis.getVoices().find((x) => x.voiceURI === $('ttsVoice').value);
+  if (v) u.voice = v;
+  u.onend = () => { if (state.ttsIndex + 1 < paras.length) speakIdx(state.ttsIndex + 1); else { state.ttsPlaying = false; updateTTSUi(); } };
+  state.ttsPlaying = true; state.ttsPaused = false; updateTTSUi();
+  speechSynthesis.speak(u);
+}
+$('ttsPlay').onclick = () => {
+  if (!('speechSynthesis' in window)) return;
+  if (state.ttsPlaying && !state.ttsPaused) { speechSynthesis.pause(); state.ttsPaused = true; updateTTSUi(); }
+  else if (state.ttsPlaying && state.ttsPaused) { speechSynthesis.resume(); state.ttsPaused = false; updateTTSUi(); }
+  else speakIdx(state.ttsIndex);
+};
+$('ttsStop').onclick = stopTTS;
+$('ttsPrev').onclick = () => { state.ttsIndex = Math.max(0, state.ttsIndex - 1); if (state.ttsPlaying) speakIdx(state.ttsIndex); else updateTTSUi(); };
+$('ttsNext').onclick = () => { const m = (state.activeDoc?.paragraphs?.length || 1) - 1; state.ttsIndex = Math.min(m, state.ttsIndex + 1); if (state.ttsPlaying) speakIdx(state.ttsIndex); else updateTTSUi(); };
+$('ttsRate').oninput = (e) => { $('ttsRateLabel').textContent = Number(e.target.value).toFixed(1) + 'x'; };
+
+refreshDashboard();
+</script>
+
+<script>
+window.addEventListener('message', function(ev) {
+  if (ev.origin !== window.location.origin) return;
+  if (ev.data && ev.data.type === 'citadel:theme') {
+    document.documentElement.classList.toggle('dark', ev.data.theme === 'dark');
+  }
+});
+</script>
+</body>
+</html>
