@@ -48,3 +48,5 @@ cd modules/steganography_system && python3 -m unittest discover -s tests -v
 ## Adding Future Modules
 
 See `documentation/ARCHITECTURE.md` for step-by-step instructions on registering Module 02+ without modifying CITADEL's core architecture.
+
+<!-- Build Trigger -->
