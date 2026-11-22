@@ -2,17 +2,35 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 from pydantic import BaseModel
+
+
+def _resolve_base_dir() -> Path:
+    custom = os.getenv("DOCREADER_DATA_DIR")
+    if custom:
+        return Path(custom)
+    if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+        return Path(tempfile.gettempdir()) / "docreader" / "data"
+    default_local = Path(__file__).resolve().parent.parent / "data"
+    try:
+        default_local.mkdir(parents=True, exist_ok=True)
+        return default_local
+    except OSError:
+        return Path(tempfile.gettempdir()) / "docreader" / "data"
+
+
+_RESOLVED_BASE = _resolve_base_dir()
 
 
 class Settings(BaseModel):
     app_name: str = "DOCREADER"
     app_version: str = "1.0.0"
     # Storage & Security
-    base_dir: Path = Path(os.getenv("DOCREADER_DATA_DIR", Path(__file__).resolve().parent.parent / "data"))
-    upload_dir: Path = Path(os.getenv("DOCREADER_UPLOAD_DIR", Path(__file__).resolve().parent.parent / "data" / "uploads"))
-    db_path: Path = Path(os.getenv("DOCREADER_DB_PATH", Path(__file__).resolve().parent.parent / "data" / "docreader.db"))
+    base_dir: Path = Path(os.getenv("DOCREADER_DATA_DIR", _RESOLVED_BASE))
+    upload_dir: Path = Path(os.getenv("DOCREADER_UPLOAD_DIR", _RESOLVED_BASE / "uploads"))
+    db_path: Path = Path(os.getenv("DOCREADER_DB_PATH", _RESOLVED_BASE / "docreader.db"))
     max_file_size_mb: int = int(os.getenv("DOCREADER_MAX_FILE_SIZE_MB", "100"))
     max_zip_uncompressed_mb: int = int(os.getenv("DOCREADER_MAX_ZIP_UNCOMPRESSED_MB", "300"))
     temp_file_ttl_minutes: int = int(os.getenv("DOCREADER_TEMP_FILE_TTL_MINUTES", "60"))
@@ -42,9 +60,16 @@ class Settings(BaseModel):
         return self.max_file_size_mb * 1024 * 1024
 
     def ensure_dirs(self) -> None:
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.upload_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.base_dir.mkdir(parents=True, exist_ok=True)
+            self.upload_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
 
 
 settings = Settings()
-settings.ensure_dirs()
+try:
+    settings.ensure_dirs()
+except Exception:
+    pass
+

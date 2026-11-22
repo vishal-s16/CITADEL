@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -35,23 +36,37 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     docreader_task = None
     if docreader_settings is not None:
-        docreader_settings.ensure_dirs()
-    if docreader_cleanup_loop is not None:
-        docreader_task = asyncio.create_task(docreader_cleanup_loop())
-    if compressor_cleanup_worker is not None:
-        compressor_cleanup_worker.start()
+        try:
+            docreader_settings.ensure_dirs()
+        except Exception:
+            pass
+
+    # Background workers run only in persistent servers, not in serverless lambdas
+    is_serverless = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+    if not is_serverless:
+        if docreader_cleanup_loop is not None:
+            docreader_task = asyncio.create_task(docreader_cleanup_loop())
+        if compressor_cleanup_worker is not None:
+            try:
+                compressor_cleanup_worker.start()
+            except Exception:
+                pass
 
     try:
         yield
     finally:
-        if compressor_cleanup_worker is not None:
-            compressor_cleanup_worker.stop()
+        if compressor_cleanup_worker is not None and not is_serverless:
+            try:
+                compressor_cleanup_worker.stop()
+            except Exception:
+                pass
         if docreader_task is not None:
             docreader_task.cancel()
             try:
                 await docreader_task
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, Exception):
                 pass
+
 
 
 def create_app() -> FastAPI:

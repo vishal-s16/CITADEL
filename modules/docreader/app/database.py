@@ -18,15 +18,24 @@ _LOCK = threading.RLock()
 class Database:
     def __init__(self, db_path: Optional[Path] = None) -> None:
         self.db_path = Path(db_path or settings.db_path)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_schema()
+        try:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            self._init_schema()
+        except Exception:
+            pass
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
         with _LOCK:
-            conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+            try:
+                conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+            except Exception:
+                conn = sqlite3.connect(":memory:", check_same_thread=False)
             conn.row_factory = sqlite3.Row
-            conn.execute("PRAGMA foreign_keys = ON;")
+            try:
+                conn.execute("PRAGMA foreign_keys = ON;")
+            except Exception:
+                pass
             try:
                 yield conn
                 conn.commit()

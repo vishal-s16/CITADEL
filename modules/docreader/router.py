@@ -34,7 +34,10 @@ def register_exception_handlers(app) -> None:
 
 def create_router() -> APIRouter:
     """Return the DocReader APIRouter mounted under /api/modules/docreader."""
-    docreader_settings.ensure_dirs()
+    try:
+        docreader_settings.ensure_dirs()
+    except Exception:
+        pass
     return docreader_api_router
 
 
